@@ -8,6 +8,10 @@ Ported from javascript hashids.js
 
 ## Changelog
 
+0.3
+- encode, _encode, _hash funtion ported
+- changed the behavior of string functions
+
 0.2
 - Trying to port the functionality.
 - Building the architecture of the library.
