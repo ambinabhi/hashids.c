@@ -22,32 +22,65 @@
 #define GUARD_DIV 12
 
 /* error messages */
-#define E_ALPHABET_LENGTH 'alphabet must contain at least %d unique characters'
-#define E_ALPHABET_SPACE 'alphabet cannot contain spaces'
+#define E_ALPHABET_LENGTH "alphabet must contain at least %d unique characters\n"
+#define E_ALPHABET_SPACE "alphabet cannot contain spaces\n"
 
 // Data Structure used for Hashids
 struct Hashids {
 
-    int _alphabet_length = 62;
+    int _alphabet_length;
+    char* _alphabet;
+    char* _seps;
 
-    char _alphabet[] = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890';
-    char _seps[] = 'cfhistuCFHISTU';
+    unsigned long int _min_length;
+    unsigned long int _max_int_value;
 
-    unsigned long int _min_length = 0;
-    unsigned long int _max_int_value = 1000000000;
     int _salt_length;
+    char* _salt;
+    char* _guards;
+};
 
-    char *_salt;
-    char *_guards;
+// Removes duplicate characters from the string
+char* _str_unique( char* str ) {
+
+    if( str == NULL ) {
+        return 0;
+    }
+
+    int len = strlen( str );
+    char* result_str = ( char* ) malloc( sizeof( char ) );
+    strcpy( result_str, str );
+
+    int bin_hash[ len ];
+    int i;
+    for( i = 0; i< len; i++ ) { bin_hash[ i ] = 0; }
+    int ip_index = 0, res_index = 0;
+    char temp;
+
+    /* In place removal of duplicate characters*/
+    while( *( result_str + ip_index ) ) {
+        temp = *( result_str + ip_index );
+        if( bin_hash[ temp ] == 0 ) {
+            bin_hash[ temp ] = 1;
+            *( result_str + res_index ) = *( result_str + ip_index );
+            res_index ++;
+        }
+        ip_index ++;
+    }
+
+    /* After above step string is stringiittg.
+    Removing extra iittg after string*/
+    *( result_str + res_index ) = '\0';
+    return result_str;
 }
 
 // Returns string intersection : string containing all the common characters between str1 and str2.
-char *_str_intersect( char *str1, char *str2 ) {
+char* _str_intersect( char* str1, char* str2 ) {
     int i = 0, j = 0;
     int m = strlen( str1 );
     int n = strlen( str2 );
 
-    char *intersection = ( char * ) malloc( sizeof( char ) );
+    char* intersection = ( char* ) malloc( sizeof( char ) );
     while( i < m && j < n ) {
         if( str1[ i ] < str2[ j ] ) {
             i ++;
@@ -55,40 +88,39 @@ char *_str_intersect( char *str1, char *str2 ) {
             j ++;
         } else {
             /* if str1[ i ] == str2[ j ] */
-            strcat( intersection, arr2[ j++ ] );
+            strcat( intersection, str2 + j );
+            j++;
             i++;
         }
     }
-    strcat( intersection, '\0' );
     return intersection;
 }
 
 // Returns string diff : str1 - str2 i.e., string containing characters which are there in str1 but not in str2.
-char *_str_diff( char *str1, char *str2 ) {
+char* _str_diff( char* str1, char* str2 ) {
     int m = strlen( str1 );
     int n = strlen( str2 );
-    char *diff = ( char * ) malloc( sizeof( char ) );
-    for( int i = 0; i < m; i++ ) {
-        if( strstr( str2, str1[ i ] ) == NULL ) {
-            strcat( diff, str1[ i ] );
+    int i;
+    char* diff = ( char* ) malloc( sizeof( char ) );
+    for( i = 0; i < m; i++ ) {
+        if( strchr( str2, str1[ i ] ) == NULL ) {
+            strcat( diff, str1 + i );
         }
     }
-    strcat( diff, '\0' );
     return diff;
 }
 
 // Returns a part of string
-char *_substr( char *input, int offset, int len ) {
+char* _substr( char* input, int offset, int len ) {
     int inputLength = strlen( input );
     if( offset <= inputLength ) {
         int resultLength = inputLength-offset;
         if( len < resultLength ) {
             resultLength = len;
         }
-        char *result = ( char * ) malloc( sizeof( char ) );
+        char* result = ( char* ) malloc( sizeof( char ) );
         if( NULL != result ) {
             strncpy( result, input+offset, resultLength );
-            result[ resultLength ] = '\0';
         }
         return result;
     } else {
@@ -97,8 +129,10 @@ char *_substr( char *input, int offset, int len ) {
     }
 }
 
-char *_str_replace( char *search , char *replace , char *subject ) {
-    char  *p = NULL , *old = NULL , *new_subject = NULL ;
+char* _str_replace( char* search , char* replace , char* subject ) {
+    char* p = NULL;
+    char* old = NULL;
+    char* new_subject = NULL;
     int c = 0 , search_size;
 
     search_size = strlen( search );
@@ -137,8 +171,8 @@ char *_str_replace( char *search , char *replace , char *subject ) {
     return new_subject;
 }
 
-int _strpos( char *haystack, char *needle ) {
-    char *p = strstr( haystack, needle );
+int _strpos( char* haystack, char* needle ) {
+    char* p = strstr( haystack, needle );
     if( p ) {
         return p - haystack;
     }
@@ -146,11 +180,12 @@ int _strpos( char *haystack, char *needle ) {
 }
 
 // Removes trailing/leading white spaces from the string
-char *_trim( char *str ) {
-    char *ibuf = str, *obuf = str;
+char* _trim( char* str ) {
+    char* ibuf = str;
+    char* obuf = str;
     int i = 0, cnt = 0;
 
-    char *return_str;
+    char* return_str;
     strcpy( return_str, str );
 
     /*
@@ -196,9 +231,9 @@ char *_trim( char *str ) {
 }
 
 // Explodes a string to array of strings based on delimiter
-int _explode( char *delim, char *str, char ***r ) {
-    char **res = ( char** ) malloc( sizeof( char* ) * strlen( str ) );
-    char *p;
+int _explode( char* delim, char* str, char*** r ) {
+    char** res = ( char** ) malloc( sizeof( char* ) * strlen( str ) );
+    char* p;
     int i = 0;
     while( p = strtok( str, delim ) ) {
         res[ i ] = malloc( strlen( p ) + 1 );
@@ -212,7 +247,7 @@ int _explode( char *delim, char *str, char ***r ) {
 }
 
 // Hash Shuffle Logic Function
-char *_consistent_shuffle( char *alphabet, char *salt ) {
+char* _consistent_shuffle( char* alphabet, char* salt ) {
     if( alphabet == NULL || salt == NULL ) {
         return NULL;
     }
@@ -221,16 +256,16 @@ char *_consistent_shuffle( char *alphabet, char *salt ) {
         return alphabet;
     }
 
-    char *return_str;
+    char* return_str;
     strcpy( return_str, alphabet );
 
-    for( int i = strlen( return_str ) - 1, int v = 0, int p = 0; i > 0; i--, v++ ) {
+    int i, v, p;
+    for( i = strlen( return_str ) - 1, v = 0, p = 0; i > 0; i--, v++ ) {
         int _int;
         char temp;
         v %= strlen( salt );
-        // TODO: Check for atoi - in php it was used ord.
-        p += _int = atoi( salt[ v ] );
-        j = ( _int + v + p ) % i;
+        p += _int = salt[ v ];
+        int j = ( _int + v + p ) % i;
 
         temp = return_str[ j ];
         return_str[ j ] = return_str[ i ];
@@ -241,23 +276,30 @@ char *_consistent_shuffle( char *alphabet, char *salt ) {
 }
 
 // Hash Function
-char *_hash( int input, char *alphabet ) {
-    char *hash = ( char * ) malloc( sizeof( char ) );
-    strcpy( hash, '' );
-    alphabet_length = strlen( alphabet );
+char* _hash( int input, char* alphabet ) {
+    char* hash = ( char* ) malloc( sizeof( char ) );
+    strcpy( hash, "" );
+    int alphabet_length = strlen( alphabet );
     do {
-        strcpy( hash, strcat( alphabet[ input % alphabet_length ], hash ) );
+        char temp[2];
+        temp[0] = alphabet[ input % alphabet_length ];
+        temp[1] = '\0';
+        strcpy( hash, strcat( temp, hash ) );
         input = ( int ) ( input / alphabet_length );
     } while ( input );
     return hash;
 }
 
-int _unhash( car *input, char *alphabet ) {
+int _unhash( char* input, char* alphabet ) {
     int number = 0;
     if( strlen( input ) && alphabet != NULL ) {
         int alphabet_length = strlen( alphabet );
-        for( int i = 0; i < strlen( input ); i++ ) {
-            int pos = _strpos( alphabet, input[ i ] );
+        int i;
+        for( i = 0; i < strlen( input ); i++ ) {
+            char temp[2];
+            temp[0] = input[ i ];
+            temp[1] = '\0';
+            int pos = _strpos( alphabet, temp );
             number += pos * ( int ) pow( alphabet_length, strlen( input ) - i - 1 );
         }
     }
@@ -265,66 +307,92 @@ int _unhash( car *input, char *alphabet ) {
 }
 
 // Encode Function
-char *_encode( struct Hashids *hash_obj, int *numbers, int numbers_size ) {
-    char *alphabet = ( char * ) malloc( sizeof( char ) );
+char* _encode( struct Hashids* hash_obj, int* numbers, int numbers_size ) {
+    char* alphabet = ( char* ) malloc( sizeof( char ) );
     strcpy( alphabet, hash_obj->_alphabet );
     int numbers_hash_int = 0;
-    char *temp;
+    char* temp;
+    int i;
 
-    for( int i = 0; i < numbers_size; i++ ) {
+    for( i = 0; i < numbers_size; i++ ) {
         numbers_hash_int += ( numbers[ i ] % ( i + 100 ) );
     }
 
-    char *lottery;
-    lottery = ( char * ) malloc( sizeof( char ) );
-    encoded_str = ( char * ) malloc( sizeof( char ) );
-    strcpy( lottery, alphabet[ numbers_hash_int % strlen( alphabet ) ] );
-    strcpy( encoded_str, alphabet[ numbers_hash_int % strlen( alphabet ) ] );
+    char* lottery;
+    lottery = ( char* ) malloc( sizeof( char ) );
+    char* encoded_str = ( char* ) malloc( sizeof( char ) );
 
-    for( int i=0 ; i < numbers_size ; i++ ) {
+    temp = ( char* ) malloc( sizeof( char ) * 2 );
+    temp[0] = alphabet[ numbers_hash_int % strlen( alphabet ) ];
+    temp[1] = '\0';
+    strcpy( lottery, temp );
+    strcpy( encoded_str, temp );
+    free( temp );
+
+    for( i = 0 ; i < numbers_size ; i++ ) {
         temp = alphabet;
         alphabet = _consistent_shuffle( alphabet, _substr( strcat( strcat( lottery, hash_obj->_salt ), alphabet ), 0, strlen( alphabet ) ) );
         free( temp );
 
-        char *last = _hash( numbers[i], alphabet );
+        char* last = _hash( numbers[i], alphabet );
         strcat( encoded_str, last );
 
         if( i + 1 < numbers_size ) {
             // TODO: Check for atoi - in php it was used ord.
-            number[ i ] %= ( atoi( last ) + i );
+            numbers[ i ] %= ( atoi( last ) + i );
             int seps_index = numbers[ i ] % strlen( hash_obj->_seps );
-            strcat( encoded_str, hash_obj->_seps[ seps_index ] );
+            temp = ( char* ) malloc( sizeof( char ) * 2 );
+            temp[0] = hash_obj->_seps[ seps_index ];
+            temp[1] = '\0';
+            strcat( encoded_str, temp );
+            free( temp );
         }
     }
 
-    if( strlen( encoded_str ) < hash_obj->_min_hash_length ) {
-        int guard_index = ( numbers_hash_int + atoi( encoded_str[ 0 ] ) ) % strlen( hash_obj->_guards );
+    if( strlen( encoded_str ) < hash_obj->_min_length ) {
+        temp = ( char* ) malloc( sizeof( char ) * 2 );
+        temp[0] = encoded_str[ 0 ];
+        temp[1] = '\0';
+        int guard_index = ( numbers_hash_int + atoi( temp ) ) % strlen( hash_obj->_guards );
+        free( temp );
 
-        char *guard = ( char * ) malloc( sizeof( char ) );
-        strcpy( guard, hash_obj->_guards[ guard_index ] );
+        char* guard = ( char* ) malloc( sizeof( char ) );
+        temp = ( char* ) malloc( sizeof( char ) * 2 );
+        temp[0] = hash_obj->_guards[ guard_index ];
+        temp[1] = '\0';
+        strcpy( guard, temp );
+        free( temp );
 
-        strcpy( encoded_str, strcat( guard, encoded_str ) )
+        strcpy( encoded_str, strcat( guard, encoded_str ) );
 
-        if( strlen( encoded_str ) < hash_obj->_min_hash_length ) {
-            guard_index = ( numbers_hash_int + atoi( encoded_str[ 2 ] ) ) % strlen( hash_obj->_guards );
+        if( strlen( encoded_str ) < hash_obj->_min_length ) {
+            temp = ( char* ) malloc( sizeof( char ) * 2 );
+            temp[0] = encoded_str[ 2 ];
+            temp[1] = '\0';
+            guard_index = ( numbers_hash_int + atoi( temp ) ) % strlen( hash_obj->_guards );
+            free( temp );
 
-            strcpy( guard, hash_obj->_guards[ guard_index ] );
+            temp = ( char* ) malloc( sizeof( char ) * 2 );
+            temp[0] = hash_obj->_guards[ guard_index ];
+            temp[1] = '\0';
+            strcpy( guard, temp );
+            free( temp );
 
             strcat( encoded_str, guard );
         }
     }
 
     int half_length = ( int ) ( strlen( alphabet ) / 2 );
-    while( strlen( encoded_str ) < hash_obj->_min_hash_length ) {
+    while( strlen( encoded_str ) < hash_obj->_min_length ) {
         temp = alphabet;
         alphabet = _consistent_shuffle( alphabet, alphabet );
         free( temp );
 
         strcpy( encoded_str, strcat( _substr( alphabet, half_length, strlen( alphabet ) - half_length ), strcat( encoded_str, _substr( alphabet, 0, half_length ) ) ) );
 
-        int excess = strlen( encoded_str ) - hash_obj->_min_hash_length;
+        int excess = strlen( encoded_str ) - hash_obj->_min_length;
         if( excess > 0 ) {
-            strcpy( encoded_str, _substr( encoded_str, excess / 2, hash_obj->_min_hash_length ) );
+            strcpy( encoded_str, _substr( encoded_str, excess / 2, hash_obj->_min_length ) );
         }
     }
 
@@ -332,15 +400,15 @@ char *_encode( struct Hashids *hash_obj, int *numbers, int numbers_size ) {
 }
 
 // Decode Function
-int _decode( struct Hashids *hash_obj, char *hash, char *alphabet, int *numbers ) {
+int _decode( struct Hashids* hash_obj, char* hash, char* alphabet, int* numbers ) {
     free( numbers );
     int num_count = 0;
-    numbers = ( int * ) malloc( ( num_count + 1 ) * sizeof( int ) );
+    numbers = ( int* ) malloc( ( num_count + 1 ) * sizeof( int ) );
 
-    char *hash_breakdown = _str_replace( hash_obj->_guards, ' ', hash );
-    char **hash_array;
-    char *temp;
-    int hash_array_len = _explode( ' ', hash_breakdown, &hash_array );
+    char* hash_breakdown = _str_replace( hash_obj->_guards, " ", hash );
+    char** hash_array;
+    char* temp;
+    int hash_array_len = _explode( " ", hash_breakdown, &hash_array );
 
     int i = 0;
     if( hash_array_len == 3 || hash_array_len == 2 ) {
@@ -348,22 +416,28 @@ int _decode( struct Hashids *hash_obj, char *hash, char *alphabet, int *numbers 
     }
 
     strcpy( hash_breakdown, hash_array[ i ] );
-    if( hash_breakdown[ 0 ] != NULL ) {
+    if( hash_breakdown != NULL ) {
 
-        char lottery = hash_breakdown[ 0 ];
+        char* lottery = ( char* ) malloc( sizeof(char) * 2 );
+        temp = ( char* ) malloc( sizeof( char ) * 2 );
+        temp[0] = hash_breakdown[ 0 ];
+        temp[1] = '\0';
+        strcpy( lottery, temp );
+        free( temp );
 
         temp = hash_breakdown;
         hash_breakdown = _substr( hash_breakdown, 1 , strlen( hash_breakdown ) - 1 );
         free( temp );
 
         temp = hash_breakdown;
-        hash_breakdown = _str_replace( hash_obj->_seps, ' ', hash_breakdown );
+        hash_breakdown = _str_replace( hash_obj->_seps, " ", hash_breakdown );
         free( temp );
 
         free( hash_array );
-        hash_array_len = _explode( ' ', hash_breakdown, &hash_array );
+        hash_array_len = _explode( " ", hash_breakdown, &hash_array );
 
-        for( int i = 0; i < hash_array_len; i++ ) {
+        int i;
+        for( i = 0; i < hash_array_len; i++ ) {
             temp = alphabet;
             alphabet = _consistent_shuffle( alphabet, _substr( strcat( lottery, strcat( hash_obj->_salt, alphabet ) ), 0, strlen( alphabet ) ) );
             free( temp );
@@ -373,7 +447,7 @@ int _decode( struct Hashids *hash_obj, char *hash, char *alphabet, int *numbers 
         }
 
         if( strcmp( _encode( hash_obj, numbers, num_count ), hash ) != 0 ) {
-            free( numbers_array );
+            free( numbers );
             num_count = 0;
         }
     }
@@ -382,11 +456,21 @@ int _decode( struct Hashids *hash_obj, char *hash, char *alphabet, int *numbers 
 }
 
 // Hashids main function to retrieve Hash
-struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabet ) {
+struct Hashids* Hashids( char* salt, unsigned long int min_length, char* alphabet ) {
+    struct Hashids* hash_obj = ( struct Hashids* ) malloc( sizeof( struct Hashids ) );
 
-    struct Hashids *hash_obj = ( struct hashids * ) malloc( sizeof( struct Hashids ) );
+    hash_obj->_alphabet_length = 62;
 
-    char *temp;
+    hash_obj->_alphabet = ( char* ) malloc( sizeof( char ) );
+    hash_obj->_seps = ( char* ) malloc( sizeof( char ) );
+
+    strcpy( hash_obj->_alphabet, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890" );
+    strcpy( hash_obj->_seps, "cfhistuCFHISTU" );
+
+    hash_obj->_min_length = 0;
+    hash_obj->_max_int_value = 1000000000;
+
+    char* temp;
 
     /* handle parameters */
 
@@ -397,20 +481,19 @@ struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabe
         hash_obj->_min_length = ( int ) min_length;
     }
 
-    strcpy( hash_obj->_alphabet, alphabet );
+    printf("%d", strlen(alphabet));
+    exit(0);
 
-    int len = strlen( hash_obj->_alphabet );
-
-    char *unique_alphabet = ( char * ) malloc( sizeof( char ) );
-    strcpy( unique_alphabet, '' );
-
-    for( int i = 0; i !== len; i++) {
-        if( strstr( unique_alphabet, hash_obj->_alphabet[ i ] ) == NULL ) {
-            strcat( unique_alphabet, hash_obj->_alphabet[ i ] );
-        }
-    }
-
-    strcpy( hash_obj._alphabet, unique_alphabet );
+    // if( alphabet != NULL && strlen( alphabet ) > 0 ) {
+    //     temp = hash_obj->_alphabet;
+    //     printf("yoyo");
+    //     exit(0);
+    //     // hash_obj->_alphabet = _str_unique( alphabet );
+    //     printf("%s\n",hash_obj->_alphabet);
+    //     exit(0);
+    //     // free( temp );
+	// 	hash_obj->_alphabet_length = strlen( hash_obj->_alphabet );
+	// }
 
     if( strlen( hash_obj->_alphabet ) < MIN_ALPHABET_LENGTH ) {
         printf( E_ALPHABET_LENGTH, MIN_ALPHABET_LENGTH );
@@ -418,7 +501,7 @@ struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabe
         return;
     }
 
-    if( strstr( hash_obj->_alphabet, ' ' ) != NULL ) {
+    if( strstr( hash_obj->_alphabet, " " ) != NULL ) {
         printf( E_ALPHABET_SPACE );
         free( hash_obj );
         return;
@@ -426,8 +509,8 @@ struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabe
 
     /* seps should contain only characters present in alphabet; alphabet should not contains seps */
 
-    char *temp_alphabet = ( char * ) malloc( sizeof( char ) );
-    char *temp_seps = ( char * ) malloc( strlen( sizeof( char ) );
+    char* temp_alphabet = ( char* ) malloc( sizeof( char ) );
+    char* temp_seps = ( char* ) malloc( sizeof( char ) );
     strcpy( temp_alphabet, hash_obj->_alphabet );
     strcpy( temp_seps, hash_obj->_seps );
 
@@ -440,11 +523,11 @@ struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabe
     free( temp );
 
     temp = hash_obj->_alphabet;
-    hash_obj->_alphabet = _str_replace( ' ', '', hash_obj->_alphabet );
+    hash_obj->_alphabet = _str_replace( " ", "", hash_obj->_alphabet );
     free( temp );
 
     temp = hash_obj->_salt;
-    hash_obj->_salt = _str_replace( ' ', '', hash_obj->_salt );
+    hash_obj->_salt = _str_replace( " ", "", hash_obj->_salt );
     free( temp );
 
     temp = hash_obj->_seps;
@@ -501,20 +584,20 @@ struct Hashids *Hashids( char *salt, unsigned long int min_length, char *alphabe
     return hash_obj;
 }
 
-char *encode( struct Hashids *hash_obj, long int numbers, ... ) {
+char* encode( struct Hashids* hash_obj, long int numbers, ... ) {
     va_list valist;
     va_start( valist, numbers );
     if( ! numbers ) {
         va_end( valist );
-        return '';
+        return "";
     }
-    int *numbers_array = ( int * ) malloc( numbers * sizeof( int ) );
-    int j = 0;
-    for( int i = 0; i < numbers; i++ ) {
+    int* numbers_array = ( int* ) malloc( numbers * sizeof( int ) );
+    int j = 0, i;
+    for( i = 0; i < numbers; i++ ) {
         int number = va_arg( valist, int );
         if( number < 0 || number > hash_obj->_max_int_value ) {
             va_end( valist );
-            return '';
+            return "";
         } else {
             numbers_array[ j++ ] = number;
         }
@@ -524,7 +607,7 @@ char *encode( struct Hashids *hash_obj, long int numbers, ... ) {
     return _encode( hash_obj, numbers_array, j );
 }
 
-int decode( struct Hashids *hash_obj, char *hash, int *numbers ) {
+int decode( struct Hashids* hash_obj, char* hash, int* numbers ) {
     if( hash == NULL || ! strlen( hash ) ) {
         free( numbers );
         return 0;
