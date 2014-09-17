@@ -14,7 +14,7 @@
 #include <math.h>
 #include <stdarg.h>
 
-#define HASHIDS_VERSION 0.4
+#define HASHIDS_VERSION 0.5
 
 /* internal settings */
 #define MIN_ALPHABET_LENGTH 16
@@ -137,6 +137,14 @@ char *_str_replace( char *search , char *replace , char *subject ) {
     return new_subject;
 }
 
+int _strpos( char *haystack, char *needle ) {
+    char *p = strstr( haystack, needle );
+    if( p ) {
+        return p - haystack;
+    }
+    return -1;   // Not found = -1.
+}
+
 // Removes trailing/leading white spaces from the string
 char *_trim( char *str ) {
     char *ibuf = str, *obuf = str;
@@ -242,6 +250,18 @@ char *_hash( int input, char *alphabet ) {
         input = ( int ) ( input / alphabet_length );
     } while ( input );
     return hash;
+}
+
+int _unhash( car *input, char *alphabet ) {
+    int number = 0;
+    if( strlen( input ) && alphabet != NULL ) {
+        int alphabet_length = strlen( alphabet );
+        for( int i = 0; i < strlen( input ); i++ ) {
+            int pos = _strpos( alphabet, input[ i ] );
+            number += pos * ( int ) pow( alphabet_length, strlen( input ) - i - 1 );
+        }
+    }
+    return number;
 }
 
 // Encode Function

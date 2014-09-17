@@ -8,12 +8,15 @@ Ported from javascript hashids.js
 
 ## Changelog
 
+0.5
+- _unhash function added
+
 0.4
-- decode, _decode, _unhash function ported
+- decode, _decode functions ported
 - Code Restructure as a header library. Removed .c file
 
 0.3
-- encode, _encode, _hash function ported
+- encode, _encode, _hash functions ported
 - changed the behavior of string functions
 
 0.2
