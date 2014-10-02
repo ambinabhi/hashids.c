@@ -23,8 +23,3 @@
 *.hex
 /build/
 dist/
-
-# Netbeans
-nbproject/
-Makefile
-.dep.inc
