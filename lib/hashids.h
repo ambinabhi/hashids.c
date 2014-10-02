@@ -481,19 +481,12 @@ struct Hashids* Hashids( char* salt, unsigned long int min_length, char* alphabe
         hash_obj->_min_length = ( int ) min_length;
     }
 
-    printf("%d", strlen(alphabet));
-    exit(0);
-
-    // if( alphabet != NULL && strlen( alphabet ) > 0 ) {
-    //     temp = hash_obj->_alphabet;
-    //     printf("yoyo");
-    //     exit(0);
-    //     // hash_obj->_alphabet = _str_unique( alphabet );
-    //     printf("%s\n",hash_obj->_alphabet);
-    //     exit(0);
-    //     // free( temp );
-	// 	hash_obj->_alphabet_length = strlen( hash_obj->_alphabet );
-	// }
+    if( alphabet != NULL && strlen( alphabet ) > 0 ) {
+        temp = hash_obj->_alphabet;
+        hash_obj->_alphabet = _str_unique( alphabet );
+        free( temp );
+		hash_obj->_alphabet_length = strlen( hash_obj->_alphabet );
+	}
 
     if( strlen( hash_obj->_alphabet ) < MIN_ALPHABET_LENGTH ) {
         printf( E_ALPHABET_LENGTH, MIN_ALPHABET_LENGTH );
